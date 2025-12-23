@@ -1,5 +1,7 @@
 name: hprofile Actions
 on: workflow_dispatch
+env:
+  AWS_REGION: ap-south-1
 jobs: 
   Testing:
     runs-on: ubuntu-latest
@@ -7,8 +9,8 @@ jobs:
       - name: Git Code Checkout
         uses: actions/checkout@v6
 
-      - name: Maven Test
-        run: mvn test
+      - name: Maven Test 
+        run: mvn test 
 
       - name: Checkstyle
         run: mvn checkstyle:checkstyle
@@ -21,6 +23,8 @@ jobs:
 
       - name: Setup SonarQube
         uses: warchant/setup-sonar-scanner@v8
+        with:
+          version: 7.2.0.5079
 
       - name: SonarQube Scan
         run: sonar-scanner
@@ -34,7 +38,6 @@ jobs:
             -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml
             -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/
 
-
       - name: SonarQube Quality Gate check
         id: sonarqube-quality-gate-check
         uses: sonarsource/sonarqube-quality-gate-action@master
@@ -43,3 +46,22 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+
+  BUILD_AND_PUBLISH:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git Code Checkout
+        uses: actions/checkout@v6     
+
+      - name: Build & Upload image to ECR
+        uses: appleboy/docker-ecr-action@master
+        with:
+          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          registry: ${{ secrets.REGISTRY }}
+          repo: actionsapp
+          region: ${{ env.AWS_REGION }}
+          tags: latest,${{ github.run_number }}
+          daemon_off: false
+          dockerfile: ./Dockerfile
+          context: ./ 
